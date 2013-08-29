@@ -1,0 +1,6 @@
+ubuntu@ubuntu:~/Desktop/houdini_splice/CreationSpliceHoudini12_linux_gcc4_4$ houdini -foreground
+Initialized CreationSplice.
+ (sent by pid 155097880)ntation Fault
+Saving application data to /tmp/crash.untitled.ubuntu_7403.hip
+Crash log saved to /tmp/crash.untitled.ubuntu_7403_log.txt
+ubuntu@ubuntu:~/Desktop/houdini_splice/CreationSpliceHoudini12_linux_gcc4_4$ 
