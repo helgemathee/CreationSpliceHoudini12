@@ -6,6 +6,24 @@ In no event will the authors be held liable for any damages arising from the use
 This file may not be redistributed in whole or significant part.
 This notice may not be removed or altered from any source distribution.
 */
+
+/*
+Install:
+copy "SOP_Splice.so" file and "RT", "Exts" folders to /home/ubuntu/houdini12.5
+
+run console:
+	export FABRIC_RT_PATH=/home/ubuntu/houdini12.5/dso/RT
+	export FABRIC_EXTS_PATH=/home/ubuntu/houdini12.5/dso/Exts
+
+	cd /opt/hfs12.5.469/
+	source houdini_setup
+
+	cd < "some path" /CreationSpliceHoudini12_linux64_gcc4_4>
+	sh build.sh
+
+	houdini -foreground
+*/
+
 #include "SOP_Splice.h"
 
 
@@ -19,7 +37,7 @@ using namespace CreationSplice;
 OP_ERROR SOP_Splice::cookMySop(OP_Context &context)
 {
 	m_time = context.getTime();
- 	m_boss = UTgetInterrupt();
+	m_boss = UTgetInterrupt();
 	if (lockInputs(context) >= UT_ERROR_ABORT)
 		return error();
 
@@ -27,11 +45,20 @@ OP_ERROR SOP_Splice::cookMySop(OP_Context &context)
 	duplicateSource(0, context);
 
 
+
 	//Splice test...
-	Initialize();
-	Node node1;
-	Node node2("myKLEnabledNode");	//this creates crash!
-	Finalize();
+	Node node("myKLEnabledNode");
+
+	// create an operator
+	std::string klCode = "";
+	klCode += "operator helloWorldOp() {\n";
+	klCode += "  report('Hello World from KL!');\n";
+	klCode += "}\n";
+	node.constructKLOperator("helloWorldOp", klCode.c_str());
+
+	//evaluate the node
+	node.evaluate();
+
 
 
 	unlockInputs();
@@ -74,14 +101,29 @@ SOP_Splice::SOP_Splice(OP_Network *net, const char *name, OP_Operator *op)
 	: SOP_Node(net, name, op)
 {
 	getFullPath(m_operatorName);
+
+
 }
 SOP_Splice::~SOP_Splice()
 {
+
 }
+
+
+static void dsoExit(void *)
+{
+	Finalize();	//finish Splice
+}
+
+
 
 //main procedure for library(plugin)
 void newSopOperator(OP_OperatorTable *table)
 {
+	UT_Exit::addExitCallback(dsoExit);
+
+	Initialize();	//Init Splice
+
 	table->addOperator(new OP_Operator(
 						"splice",
 						"splice",
@@ -91,6 +133,7 @@ void newSopOperator(OP_OperatorTable *table)
 						1,
 						0));
 }
+
 
 
 

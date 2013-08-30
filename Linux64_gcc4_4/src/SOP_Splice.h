@@ -9,6 +9,7 @@ This notice may not be removed or altered from any source distribution.
 #pragma once
 
 #include <UT/UT_DSOVersion.h>
+#include <UT/UT_Exit.h>
 
 #include <UT/UT_Math.h>
 #include <UT/UT_Interrupt.h>
