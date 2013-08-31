@@ -52,6 +52,34 @@ This notice may not be removed or altered from any source distribution.
 #include <vector>
 
 
+/**
+Reading parameters(GUI)
+*/
+#define INT_PARM(name, vidx, t)	\
+	    return (int)evalInt(name, vidx, t);
+#define FLT_PARM(name, vidx, t)	\
+	    return (float)evalFloat(name, vidx, t);
+#define V3_PARM(name, t)	\
+	    return UT_Vector3( (float)evalFloat(name, 0, t), (float)evalFloat(name, 1, t), (float)evalFloat(name, 2, t));
+
+#define INT_PARM_MULT(name, vidx, t, inst)	\
+	    return (int)evalIntInst(name, inst, vidx, t, 1);
+#define FLT_PARM_MULT(name, vidx, t, inst)	\
+	    return (float)evalFloatInst(name, inst, vidx, t, 1);
+#define V3_PARM_MULT(name, t, inst)	\
+	    return UT_Vector3( (float)evalFloatInst(name, inst, 0, t, 1), (float)evalFloatInst(name, inst, 1, t, 1), (float)evalFloatInst(name, inst, 2, t,1));
+
+/**
+Paramters range <>
+*/
+static PRM_Range g_range_zero_more(PRM_RANGE_RESTRICTED, 0.0, PRM_RANGE_FREE, 10000000000);	//0+
+static PRM_Range g_range_one_more(PRM_RANGE_RESTRICTED, 1, PRM_RANGE_FREE, 10000000000);	//1+
+static PRM_Range g_range_zero_min_more(PRM_RANGE_RESTRICTED, 0.0001f, PRM_RANGE_FREE, 10000000000);	//0.0001+
+static PRM_Range g_range_minus_one_more(PRM_RANGE_RESTRICTED, -1, PRM_RANGE_FREE, 10000000000);	//(-1)+
+
+static PRM_Range g_range_one_to_four(PRM_RANGE_RESTRICTED, 1, PRM_RANGE_RESTRICTED, 4);	//1-4
+
+
 
 namespace HDK_BulletSOP_Splice{
 
@@ -66,6 +94,14 @@ private:
 	UT_String m_operatorName;
 	GU_Detail* m_input1;
 
+	enum TYPE
+	{
+		SCALAR,
+		FLOAT2,
+		FLOAT3,
+		FLOAT4,
+		MAT44,
+	};
 
 public:
 	SOP_Splice(OP_Network *net, const char *name, OP_Operator *op);
@@ -80,8 +116,18 @@ protected:
 	virtual bool updateParmsFlags();
 	OP_ERROR getOut(const char* err, const char* warning);
 
-private:
 
+private:
+	int getTypeSize(int type);
+
+
+
+	int LIST_VALUE_NUM() { INT_PARM("list_value", 0, m_time) }
+	int LIST_PARAM_NUM() { INT_PARM("list_parameter", 0, m_time) }
+	int LIST_ATTR_NUM() { INT_PARM("list_attribute", 0, m_time) }
+
+
+	int LIST_VALUE_TYPE(int i) { INT_PARM_MULT("varv_type", 0, m_time, &i) }
 
 
 };
