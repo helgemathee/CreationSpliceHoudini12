@@ -52,6 +52,12 @@ This notice may not be removed or altered from any source distribution.
 #include <vector>
 
 
+#define FEC_STATIC
+#define FECS_STATIC
+#include <CreationSplice.h>
+//using namespace CreationSplice;
+
+
 /**
 Reading parameters(GUI)
 */
@@ -61,6 +67,9 @@ Reading parameters(GUI)
 	    return (float)evalFloat(name, vidx, t);
 #define V3_PARM(name, t)	\
 	    return UT_Vector3( (float)evalFloat(name, 0, t), (float)evalFloat(name, 1, t), (float)evalFloat(name, 2, t));
+#define STRING_PARM(name, t, str)	\
+	    evalString(str, name, 0, t);	return str;
+
 
 #define INT_PARM_MULT(name, vidx, t, inst)	\
 	    return (int)evalIntInst(name, inst, vidx, t, 1);
@@ -68,6 +77,9 @@ Reading parameters(GUI)
 	    return (float)evalFloatInst(name, inst, vidx, t, 1);
 #define V3_PARM_MULT(name, t, inst)	\
 	    return UT_Vector3( (float)evalFloatInst(name, inst, 0, t, 1), (float)evalFloatInst(name, inst, 1, t, 1), (float)evalFloatInst(name, inst, 2, t,1));
+
+#define STRING_PARM_MULT(name, t, str, inst)	\
+	    evalStringInst(name, inst, str, 0, t);	return str;
 
 /**
 Paramters range <>
@@ -91,17 +103,39 @@ class SOP_Splice : public SOP_Node
 private:
 	double m_time;
 	UT_Interrupt* m_boss;
+	OP_Context m_context;
+	UT_String m_operatorPath;
 	UT_String m_operatorName;
-	GU_Detail* m_input1;
+	GU_Detail* m_input[4];
+
+	CreationSplice::Node* m_node;
 
 	enum TYPE
 	{
 		SCALAR,
-		FLOAT2,
-		FLOAT3,
-		FLOAT4,
+		VEC2,
+		VEC3,
+		VEC4,
+		AVEC4,
 		MAT44,
 	};
+
+	enum MODE
+	{
+		IN,
+		OUT,
+		IO,
+	};
+
+
+	enum ATTRTYPE
+	{
+		POINT,
+		VERTEX,
+		PRIMITIVE,
+		DETAIL,
+	};
+
 
 public:
 	SOP_Splice(OP_Network *net, const char *name, OP_Operator *op);
@@ -118,16 +152,66 @@ protected:
 
 
 private:
+	bool isMemberExists(const char* name);
+	bool isSpliceNodeChanged();
+
+	bool copySpliceToHoudini();
+	bool deleteSpliceNode();
+	bool createSpliceNode();
+
+	bool createSpliceMembersV();
+	bool createSpliceMembersP();
+	bool createSpliceMembersA();
+
+	bool copyHoudiniToSpliceV();
+	bool copyHoudiniToSpliceP();
+	bool copyHoudiniToSpliceA();
+
+
 	int getTypeSize(int type);
+	const char* getType(int type);
+	CreationSplice::Port_Mode getMode(int type);
+	bool isModeOut(int mode);
+	GEO_AttributeHandle getAttrType(GU_Detail* my_gdp, int type, const char* name);
+
+
+	int LISTV_NUM() { INT_PARM("list_value", 0, m_time) }
+	int LISTP_NUM() { INT_PARM("list_parameter", 0, m_time) }
+	int LISTA_NUM() { INT_PARM("list_attribute", 0, m_time) }
+
+
+	int LISTV_ENABLE(int inst)						{ INT_PARM_MULT("varv_on", 0, m_time, &inst); }
+   	UT_String& LISTV_NAME(int inst, UT_String &str)	{ STRING_PARM_MULT("varv_name", m_time, str, &inst); }
+	int LISTV_TYPE(int inst)						{ INT_PARM_MULT("varv_type", 0, m_time, &inst) }
+	float LISTV_VALUE(int inst, int vidx)			{ FLT_PARM_MULT("varv_value", vidx, m_time, &inst) }
+
+	
+	int LISTP_ENABLE(int inst)						{ INT_PARM_MULT("varp_on", 0, m_time, &inst); }
+   	UT_String& LISTP_NAME(int inst, UT_String &str)	{ STRING_PARM_MULT("varp_name", m_time, str, &inst); }
+	int LISTP_TYPE(int inst)						{ INT_PARM_MULT("varp_type", 0, m_time, &inst) }
+	UT_String& LISTP_PATH(int inst, UT_String &str)	{ STRING_PARM_MULT("varp_path", m_time, str, &inst); }
+	UT_String& LISTP_PARAM(int inst, UT_String &str){ STRING_PARM_MULT("varp_param", m_time, str, &inst); }
+
+
+	
+	int LISTA_ENABLE(int inst)						{ INT_PARM_MULT("vara_on", 0, m_time, &inst); }
+   	UT_String& LISTA_NAME(int inst, UT_String &str)	{ STRING_PARM_MULT("vara_name", m_time, str, &inst); }
+	int LISTA_TYPE(int inst)						{ INT_PARM_MULT("vara_type", 0, m_time, &inst) }
+	int LISTA_MODE(int inst)						{ INT_PARM_MULT("vara_mode", 0, m_time, &inst) }
+	UT_String& LISTA_PATH(int inst, UT_String &str)	{ STRING_PARM_MULT("vara_path", m_time, str, &inst); }
+	int LISTA_INUM(int inst)						{ INT_PARM_MULT("vara_inum", 0, m_time, &inst) }
+	UT_String& LISTA_ATTR(int inst, UT_String &str)	{ STRING_PARM_MULT("vara_attr", m_time, str, &inst); }
+	int LISTA_ITYPE(int inst)						{ INT_PARM_MULT("vara_itype", 0, m_time, &inst) }
 
 
 
-	int LIST_VALUE_NUM() { INT_PARM("list_value", 0, m_time) }
-	int LIST_PARAM_NUM() { INT_PARM("list_parameter", 0, m_time) }
-	int LIST_ATTR_NUM() { INT_PARM("list_attribute", 0, m_time) }
 
 
-	int LIST_VALUE_TYPE(int i) { INT_PARM_MULT("varv_type", 0, m_time, &i) }
+
+
+   	UT_String& CODE(UT_String &str)	{ STRING_PARM("code", m_time, str); }
+
+
 
 
 };
