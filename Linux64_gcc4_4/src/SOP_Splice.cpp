@@ -145,9 +145,16 @@ bool SOP_Splice::createSpliceMembersV()
 			if(name.length() > 0)
 			{
 				UT_String namePort;	addPortString(namePort, name);
-
-				m_node->addMember(name.buffer(), getType( LISTV_TYPE(i) ));
-				m_node->addPort(namePort.buffer(), name.buffer(), CreationSplice::Port_Mode_IN);
+				try
+				{
+					m_node->addMember(name.buffer(), getType( LISTV_TYPE(i) ));
+					m_node->addPort(namePort.buffer(), name.buffer(), CreationSplice::Port_Mode_IN);
+				}
+				catch(CreationSplice::Exception e)
+				{
+					printf("createSpliceMembersV() error: %s\n", e.what());
+					return false;
+				}
 			}
 			else
 			{
@@ -172,8 +179,16 @@ bool SOP_Splice::createSpliceMembersP()
 			{
 				UT_String namePort;	addPortString(namePort, name);
 
-				m_node->addMember(name.buffer(), getType( LISTP_TYPE(i) ));
-				m_node->addPort(namePort.buffer(), name.buffer(), CreationSplice::Port_Mode_IN);
+				try
+				{
+					m_node->addMember(name.buffer(), getType( LISTP_TYPE(i) ));
+					m_node->addPort(namePort.buffer(), name.buffer(), CreationSplice::Port_Mode_IN);
+				}
+				catch(CreationSplice::Exception e)
+				{
+					printf("createSpliceMembersP() error: %s\n", e.what());
+					return false;
+				}
 			}
 			else
 			{
@@ -225,15 +240,24 @@ bool SOP_Splice::copyHoudiniToSpliceV()
 			LISTV_NAME(i, name);
 			if(name.length() > 0)
 			{
-				UT_String namePort;	addPortString(namePort, name);
-				CreationSplice::Port port = m_node->getPort(namePort.buffer());
+				try
+				{
+					UT_String namePort;	addPortString(namePort, name);
+					CreationSplice::Port port = m_node->getPort(namePort.buffer());
 
-				const int tsize = getTypeSize( LISTV_TYPE(i) );
-				std::vector<float> values(tsize);
-				for(int ii=0; ii < tsize; ii++)
-					values[ii] = LISTV_VALUE(i, ii);
+					const int tsize = getTypeSize( LISTV_TYPE(i) );
+					std::vector<float> values(tsize);
+					for(int ii=0; ii < tsize; ii++)
+						values[ii] = LISTV_VALUE(i, ii);
 
-				port.setAllSlicesData(&values[0], sizeof(float) * tsize);
+					port.setAllSlicesData(&values[0], sizeof(float) * tsize);
+				}
+				catch(CreationSplice::Exception e)
+				{
+					printf("copyHoudiniToSpliceV() error: %s\n", e.what());
+					return false;
+				}
+
 			}	
 			else
 			{
@@ -256,21 +280,29 @@ bool SOP_Splice::copyHoudiniToSpliceP()
 			LISTP_NAME(i, name);
 			if(name.length() > 0)
 			{
-				UT_String namePort;	addPortString(namePort, name);
-				CreationSplice::Port port = m_node->getPort(namePort.buffer());
-
-				const int tsize = getTypeSize( LISTP_TYPE(i) );
-				std::vector<float> values(tsize);
-				UT_String path;		LISTP_PATH(i, path);
-				UT_String param;	LISTP_PARAM(i, param);
-				OP_Node* path_node = this->findNode(path);
-				if(path_node)
+				try
 				{
-					for(int ii=0; ii < tsize; ii++)
-						values[ii] = (float)path_node->evalFloat(param, ii, m_time);
-				}
+					UT_String namePort;	addPortString(namePort, name);
+					CreationSplice::Port port = m_node->getPort(namePort.buffer());
 
-				port.setAllSlicesData(&values[0], sizeof(float) * tsize);
+					const int tsize = getTypeSize( LISTP_TYPE(i) );
+					std::vector<float> values(tsize);
+					UT_String path;		LISTP_PATH(i, path);
+					UT_String param;	LISTP_PARAM(i, param);
+					OP_Node* path_node = this->findNode(path);
+					if(path_node)
+					{
+						for(int ii=0; ii < tsize; ii++)
+							values[ii] = (float)path_node->evalFloat(param, ii, m_time);
+					}
+
+					port.setAllSlicesData(&values[0], sizeof(float) * tsize);
+				}
+				catch(CreationSplice::Exception e)
+				{
+					printf("copyHoudiniToSpliceP() error: %s\n", e.what());
+					return false;
+				}
 			}	
 			else
 			{
@@ -293,6 +325,9 @@ bool SOP_Splice::copyHoudiniToSpliceA()
 			LISTA_NAME(i, name);
 			if(name.length() > 0)
 			{
+				try
+				{
+
 				UT_String namePort;	addPortString(namePort, name);
 				CreationSplice::Port port = m_node->getPort(namePort.buffer());
 
@@ -393,6 +428,14 @@ bool SOP_Splice::copyHoudiniToSpliceA()
 				}
 
 				port.setArrayData(&values[0], sizeof(float) * tsize * N);
+
+				}
+				catch(CreationSplice::Exception e)
+				{
+					printf("copyHoudiniToSpliceA() error: %s\n", e.what());
+					return false;
+				}
+
 			}	
 			else
 			{
@@ -435,7 +478,7 @@ bool SOP_Splice::createSpliceNode()
 	catch(CreationSplice::Exception e)
 	{
 		char err[255];
-		sprintf(err, "Caught error: %s\n", e.what());
+		sprintf(err, "constructKLOperator error: %s\n", e.what());
 		getOut(err, 0);
 		return false;
 	}
@@ -462,55 +505,67 @@ bool SOP_Splice::copySpliceToHoudini()
 			UT_String name;	LISTA_NAME(i, name);
 			if(name.length() > 0 && isModeOut( LISTA_MODE(i) ))
 			{
-				UT_String namePort;	addPortString(namePort, name);
-				CreationSplice::Port port = m_node->getPort(namePort.buffer());
 
-				const int tsize = getTypeSize( LISTA_TYPE(i) );
-				const int N = port.getArrayCount();
-
-				std::vector<float> values(tsize * N);
-				port.getArrayData(&values[0], sizeof(float) * tsize * N);
-
-				UT_String attr_name;	LISTA_ATTR(i, attr_name);
-				const int itype = LISTA_ITYPE(i);
-				GEO_AttributeHandle attrH = getAttrType(gdp, itype, attr_name);
-
-
-				GEO_Primitive* pr;
-				GEO_Point* pt;
-				int fi = 0;
-				switch(itype)
+				try
 				{
-				case POINT:
-					GA_FOR_ALL_GPOINTS(gdp, pt)
-					{
-						attrH.setElement(pt);
-						for(int ii=0; ii < tsize; ii++)
-							attrH.setF(values[fi++], ii);
-					}
-					break;
+					UT_String namePort;	addPortString(namePort, name);
+					CreationSplice::Port port = m_node->getPort(namePort.buffer());
 
-				case VERTEX:
-					//Work In progress
-					//...
-					
-					break;
-				case PRIMITIVE:
-					GA_FOR_ALL_PRIMITIVES(gdp, pr)
-					{
-						attrH.setElement(pr);
-						for(int ii=0; ii < tsize; ii++)
-							attrH.setF(values[fi++], ii);
-					}
-					break;
+					const int tsize = getTypeSize( LISTA_TYPE(i) );
+					const int N = port.getArrayCount();
 
-				case DETAIL:
-						attrH.setElement(gdp);
-						for(int ii=0; ii < tsize; ii++)
-							attrH.setF(values[fi++], ii);
+					std::vector<float> values(tsize * N);
+					port.getArrayData(&values[0], sizeof(float) * tsize * N);
+
+					UT_String attr_name;	LISTA_ATTR(i, attr_name);
+					const int itype = LISTA_ITYPE(i);
+					GEO_AttributeHandle attrH = getAttrType(gdp, itype, attr_name);
+
+
+					GEO_Primitive* pr;
+					GEO_Point* pt;
+					int fi = 0;
+					switch(itype)
+					{
+					case POINT:
+						GA_FOR_ALL_GPOINTS(gdp, pt)
+						{
+							attrH.setElement(pt);
+							for(int ii=0; ii < tsize; ii++)
+								attrH.setF(values[fi++], ii);
+						}
+						break;
+
+					case VERTEX:
+						//Work In progress
+						//...
 					
-					break;
+						break;
+					case PRIMITIVE:
+						GA_FOR_ALL_PRIMITIVES(gdp, pr)
+						{
+							attrH.setElement(pr);
+							for(int ii=0; ii < tsize; ii++)
+								attrH.setF(values[fi++], ii);
+						}
+						break;
+
+					case DETAIL:
+							attrH.setElement(gdp);
+							for(int ii=0; ii < tsize; ii++)
+								attrH.setF(values[fi++], ii);
+					
+						break;
+					}
 				}
+				catch(CreationSplice::Exception e)
+				{
+					char err[255];
+					sprintf(err, "copySpliceToHoudini error: %s\n", e.what());
+					getOut(err, 0);
+					return false;
+				}
+
 			}
 		}
 	}
@@ -535,12 +590,11 @@ bool SOP_Splice::isSpliceNodeChanged()
 //	if(strcmp(m_operatorName.buffer(), m_node->getKLOperatorName(0).getStringData()) != 0)
 //		return true;
 
-printf("1\n");
 	UT_String code;	CODE(code);
 	CreationCore::Variant klcode = m_node->getKLOperatorSourceCode(m_operatorName.buffer());
 	if(strcmp(klcode.getStringData(), code.buffer()) != 0)
 		return true;
-printf("2\n");
+
 	for(int i=1; i < LISTA_NUM()+1; i++)
 	{
 		UT_String name;	LISTA_NAME(i, name);
@@ -551,7 +605,7 @@ printf("2\n");
 				return true;
 		}
 	}
-printf("3\n");
+
 	return false;
 }
 
